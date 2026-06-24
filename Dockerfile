@@ -22,8 +22,8 @@ RUN wget -q https://github.com/gorcon/rcon-cli/archive/refs/tags/v${RCON_VERSION
 FROM cm2network/steamcmd:root
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gettext-base=0.21-12 \
-    procps=2:4.0.2-3 \
+    gettext-base \
+    procps \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
