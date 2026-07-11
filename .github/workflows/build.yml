@@ -98,7 +98,6 @@ jobs:
           severity: CRITICAL
           exit-code: '1'
           ignore-unfixed: true
-          trivyignores: .trivyignore
 
       # Only after the CRITICAL gate passes; custom_tag pins the exact
       # version already baked into the image tags by the dry run above.
