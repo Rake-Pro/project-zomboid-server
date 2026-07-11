@@ -1,0 +1,2 @@
+# CVE in vendored Go binary (go1.23.1); remove when image is rebuilt nonroot (rewrite scheduled 2026-07 wk3)
+CVE-2025-68121
