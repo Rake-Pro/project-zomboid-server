@@ -212,7 +212,7 @@ if [ "$should_generate_lua" = "true" ]; then
   maps_root="/project-zomboid/media/maps"
 
   workshop_roots=()
-  for base in /project-zomboid-config /project-zomboid /home/steam /root; do
+  for base in /project-zomboid-config /project-zomboid /home/steam; do
     if [ -d "$base" ]; then
       while IFS= read -r d; do
         workshop_roots+=("$d")

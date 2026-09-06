@@ -7,18 +7,30 @@ env-driven server config / spawn LUA generation).
 ghcr.io/rake-pro/project-zomboid-server
 ```
 
+- Built `FROM ghcr.io/rake-pro/steamcmd-base:latest` (SteamCMD, the `steam`
+  user, `gosu`, and the shared `/opt/scripts/functions.sh` helpers).
+- The container boots as `root` only to re-own the data directories, then
+  `exec gosu steam` runs the game server unprivileged. The game process no
+  longer runs as root.
+- Paths are unchanged: the game still installs to `/project-zomboid` and the
+  world data (`Server/`, `Saves/`, `db/`, `Logs/`) still lives under
+  `/project-zomboid-config` via `-cachedir`.
+
 ## Tags / releases
 
-CI (`.github/workflows/build.yml`) versions the image as semver:
+| Tag | Meaning |
+| --- | --- |
+| `X.Y.Z` | Immutable release, built from git tag `vX.Y.Z` |
+| `X.Y` | Latest patch of that minor |
+| `latest` | Latest release |
+| `sha-<short>` | Commit the image was built from |
 
-- Every push to `main` mints a patch-bumped `vX.Y.Z` git tag (`#major` /
-  `#minor` in the commit message bump those segments) and pushes
-  `vX.Y.Z` + `latest` to GHCR. No `sha-` tags on main builds.
-- The version tag and the image push happen only after the Trivy scan gate
-  passes (blocking on fixable CRITICALs; a HIGH+CRITICAL report also runs,
-  non-blocking).
-- PR builds are build+scan only (short-sha tag, never pushed).
-- Pin `vX.Y.Z` in deployments; `latest` is a convenience pointer.
+- `main` is the integration branch; `ci.yml` builds (never pushes) on every push and PR.
+- `sync-prod.yml` opens a promotion PR from `main` to `prod`. Merging it (merge
+  commit) mints the next patch tag and `release.yml` builds, pushes and
+  Trivy-scans the image (blocking on fixable CRITICALs).
+- Label the promotion PR `release:minor` or `release:major` to change the bump.
+- Pin `X.Y.Z` in deployments; `latest` is a convenience pointer.
 
 ## Run
 
@@ -56,6 +68,13 @@ lives in `scripts/compile-settings.sh`. Common ones:
 | `MAP` | `Muldraugh, KY` | Map load order. |
 | `RCON_PORT` / `RCON_PASSWORD` | `27015` / (empty) | RCON endpoint (set a password to enable). |
 | `APPLY_ENV_TO_EXISTING` / `FORCE_REGENERATE_CONFIG` | `false` | Reapply / regenerate config on boot. |
+| `PUID` / `PGID` | `1000` / `1000` | UID/GID the `steam` user is remapped to, and the owner of the data volumes. |
+| `INSTALL_DIR` | `/project-zomboid` | Game install directory (SteamCMD target). |
+| `CONFIG_DIR` | `/project-zomboid-config` | Server data directory (`-cachedir`). |
+| `STEAMAPPID` | `380870` | Steam app id of the dedicated server. |
+| `STEAM_BETA` / `STEAM_BETA_PASSWORD` | (empty) | Steam beta branch to install (`-beta` / `-betapassword`). Empty or `public` = default branch. |
+| `STEAMCMD_RETRIES` | `3` | SteamCMD attempts before booting the last installed build. |
+| `STEAMCMD_WIPE_ON_FAIL` | `false` | `true` = wipe `$INSTALL_DIR/steamapps` after the retries and validate once more. Game files are untouched. |
 
 ## Ports
 
@@ -71,3 +90,21 @@ lives in `scripts/compile-settings.sh`. Common ones:
 | --- | --- |
 | `/project-zomboid` | Game install + world saves (persist this). |
 | `/project-zomboid-config` | Server config (`Server/<SERVER_NAME>.ini`, spawn LUA). |
+
+## Users and permissions
+
+| Topic | Behaviour |
+| --- | --- |
+| Entry | `init.sh` runs as `root`, calls `remap_steam_user`, then `exec gosu steam start.sh`. `start.sh` is PID 1 and owns the SIGTERM trap. |
+| `PUID` / `PGID` | Default to `1000` / `1000`. Setting them re-IDs the `steam` user before the chown, for host bind mounts owned by another UID. |
+| First boot after upgrade | Earlier images ran the server as `root`, so existing files on the volumes are root-owned. The first boot on this image chowns `/project-zomboid`, `/project-zomboid-config` and the Steam library/workshop trees to `steam`. Expect that boot to take longer on a large install. |
+| `HOME` | Stays `/home/steam` in both the root and the `steam` phase, so the Steam library and workshop paths do not move. |
+
+## Shutdown
+
+| Step | Behaviour |
+| --- | --- |
+| 1 | `SIGTERM` reaches `start.sh` (PID 1). |
+| 2 | RCON `save`, then RCON `quit`. |
+| 3 | If RCON fails, `SIGTERM` is sent directly to `ProjectZomboid64`. |
+| 4 | The container exits once the server process is gone. |
