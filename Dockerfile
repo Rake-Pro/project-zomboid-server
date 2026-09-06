@@ -19,25 +19,34 @@ RUN wget -q https://github.com/gorcon/rcon-cli/archive/refs/tags/v${RCON_VERSION
     && go build -v ./cmd/gorcon
 
 #BUILD THE SERVER IMAGE
-FROM cm2network/steamcmd:root
+FROM ghcr.io/rake-pro/steamcmd-base:latest
 
-RUN apt-get update && apt-get -y upgrade && apt-get clean && rm -rf /var/lib/apt/lists/*
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gettext-base \
-    procps \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+# The base ships as USER steam; apt needs root. gettext-base is the only extra
+# package: envsubst renders the settings template. procps (pgrep for the
+# HEALTHCHECK), curl, ca-certificates and gosu already come from the base, and
+# its package lists are stripped, so apt-get update has to run first.
+USER root
+RUN apt-get update \
+ && apt-get upgrade -y \
+ && apt-get install -y --no-install-recommends \
+      gettext-base \
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/*
 
 COPY --from=rcon-cli_builder /build/gorcon /usr/bin/rcon-cli
 
-LABEL maintainer="greg@rake.pro" \
-      name="rakepro/project-zomboid-server" \
-      github="" \
-      dockerhub=""
+LABEL name="rakepro/project-zomboid-server"
 
+# HOME is pinned because the image boots as root: without it the root phase
+# would get /root and the Steam library/workshop trees would move.
+# PUID/PGID are defaulted to the base image's steam UID/GID so a deployment
+# that does not set them keeps working instead of failing the boot.
 ENV HOME=/home/steam \
+    INSTALL_DIR=/project-zomboid \
     CONFIG_DIR=/project-zomboid-config \
+    STEAMAPPID=380870 \
+    PUID=1000 \
+    PGID=1000 \
     ADMIN_USERNAME=admin \
     ADMIN_PASSWORD=admin \
     DEFAULT_PORT=16261 \
@@ -48,9 +57,9 @@ ENV HOME=/home/steam \
     USE_STEAM=true \
     GENERATE_SETTINGS=true
 
-COPY ./scripts /home/steam/server/
+COPY --chown=steam:steam ./scripts /home/steam/server/
 
-RUN find /home/steam/server -type f \( -name "*.sh" -o -name "*.scmd" \) -exec sed -i 's/\r$//' {} \; \
+RUN find /home/steam/server -type f -name "*.sh" -exec sed -i 's/\r$//' {} \; \
  && chmod +x /home/steam/server/*.sh \
  && mkdir -p /project-zomboid /project-zomboid-config
 
@@ -58,5 +67,9 @@ WORKDIR /home/steam/server
 
 HEALTHCHECK --start-period=5m \
             CMD pgrep "ProjectZomboid" > /dev/null || exit 1
+
+# Boot as root only long enough for init.sh to remap/chown the data dirs; it
+# then drops to the steam user with gosu before the server starts.
+USER root
 
 ENTRYPOINT ["/home/steam/server/init.sh"]
