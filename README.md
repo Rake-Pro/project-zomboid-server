@@ -112,3 +112,7 @@ lives in `scripts/compile-settings.sh`. Common ones:
 | 2 | RCON `save`, then RCON `quit`. |
 | 3 | If RCON fails, `SIGTERM` is sent directly to `ProjectZomboid64`. |
 | 4 | The container exits once the server process is gone. |
+
+## License
+
+MIT, see `LICENSE`. The game server itself is downloaded from Steam at runtime and is covered by its own EULA.
