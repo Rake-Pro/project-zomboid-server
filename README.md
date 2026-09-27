@@ -31,6 +31,9 @@ ghcr.io/rake-pro/project-zomboid-server
   commit) mints the next patch tag and `release.yml` builds, pushes and
   Trivy-scans the image (blocking on fixable CRITICALs).
 - Label the promotion PR `release:minor` or `release:major` to change the bump.
+- `trivy-rescan.yml` re-scans the currently released image weekly
+  (CRITICAL+HIGH) so CVEs disclosed after release still surface; it does not
+  rebuild or push anything.
 - Pin `X.Y.Z` in deployments; `latest` is a convenience pointer.
 
 ## Run
@@ -57,25 +60,25 @@ On first boot the server installs via SteamCMD and generates
 Configuration is entirely environment-driven; the full list (with defaults)
 lives in `scripts/compile-settings.sh`. Common ones:
 
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `SERVER_NAME` | `pzserver` | Server/config name. |
-| `ADMIN_USERNAME` / `ADMIN_PASSWORD` | `admin` | In-game admin account. |
-| `PASSWORD` | (empty) | Join password (empty = open). |
-| `MAX_PLAYERS` | `32` | Player cap. |
-| `PVP` | `true` | Enable PvP. |
-| `PUBLIC` / `PUBLIC_NAME` | `false` | List on the public server browser. |
-| `MODS` / `WORKSHOP_ITEMS` | (empty) | Semicolon-separated mod IDs / Steam Workshop item IDs. |
-| `MAP` | `Muldraugh, KY` | Map load order. |
-| `RCON_PORT` / `RCON_PASSWORD` | `27015` / (empty) | RCON endpoint (set a password to enable). |
-| `APPLY_ENV_TO_EXISTING` / `FORCE_REGENERATE_CONFIG` | `false` | Reapply / regenerate config on boot. |
-| `PUID` / `PGID` | `1000` / `1000` | UID/GID the `steam` user is remapped to, and the owner of the data volumes. |
-| `INSTALL_DIR` | `/project-zomboid` | Game install directory (SteamCMD target). |
-| `CONFIG_DIR` | `/project-zomboid-config` | Server data directory (`-cachedir`). |
-| `STEAMAPPID` | `380870` | Steam app id of the dedicated server. |
-| `STEAM_BETA` / `STEAM_BETA_PASSWORD` | (empty) | Steam beta branch to install (`-beta` / `-betapassword`). Empty or `public` = default branch. |
-| `STEAMCMD_RETRIES` | `3` | SteamCMD attempts before booting the last installed build. |
-| `STEAMCMD_WIPE_ON_FAIL` | `false` | `true` = wipe `$INSTALL_DIR/steamapps` after the retries and validate once more. Game files are untouched. |
+| Variable | Default | Required | Purpose |
+| --- | --- | --- | --- |
+| `SERVER_NAME` | `pzserver` | | Server/config name. |
+| `ADMIN_USERNAME` / `ADMIN_PASSWORD` | `admin` | | In-game admin account. |
+| `PASSWORD` | (empty) | | Join password (empty = open). |
+| `MAX_PLAYERS` | `32` | | Player cap. |
+| `PVP` | `true` | | Enable PvP. |
+| `PUBLIC` / `PUBLIC_NAME` | `false` | | List on the public server browser. |
+| `MODS` / `WORKSHOP_ITEMS` | (empty) | | Semicolon-separated mod IDs / Steam Workshop item IDs. |
+| `MAP` | `Muldraugh, KY` | | Map load order. |
+| `RCON_PORT` / `RCON_PASSWORD` | `27015` / (empty) | | RCON endpoint (set a password to enable). |
+| `APPLY_ENV_TO_EXISTING` / `FORCE_REGENERATE_CONFIG` | `false` | | Reapply / regenerate config on boot. |
+| `PUID` / `PGID` | `1000` / `1000` | | UID/GID the `steam` user is remapped to, and the owner of the data volumes. |
+| `INSTALL_DIR` | `/project-zomboid` | | Game install directory (SteamCMD target). |
+| `CONFIG_DIR` | `/project-zomboid-config` | | Server data directory (`-cachedir`). |
+| `STEAMAPPID` | `380870` | | Steam app id of the dedicated server. |
+| `STEAM_BETA` / `STEAM_BETA_PASSWORD` | (empty) | | Steam beta branch to install (`-beta` / `-betapassword`). Empty or `public` = default branch. |
+| `STEAMCMD_RETRIES` | `3` | | SteamCMD attempts before booting the last installed build. |
+| `STEAMCMD_WIPE_ON_FAIL` | `false` | | `true` = wipe `$INSTALL_DIR/steamapps` after the retries and validate once more. Game files are untouched. |
 
 ## Ports
 
